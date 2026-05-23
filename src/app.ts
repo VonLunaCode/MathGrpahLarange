@@ -236,7 +236,7 @@ mathToggle.addEventListener('click', () => {
  */
 function syncList(): void {
   if (nodes.length === 0) {
-    nodeListEl.innerHTML = '<div class="empty">No hay nodos. Hacé click en el canvas para añadir.</div>';
+    nodeListEl.innerHTML = '<div class="empty">No hay nodos. Haz clic en el canvas para agregar.</div>';
   } else {
     nodeListEl.innerHTML = nodes.map((n, i) => {
       const hov = i === hoverIndex ? ' is-hover' : '';
@@ -269,7 +269,7 @@ function syncMath(): void {
         <p class="math-line">P(x) = Σᵢ yᵢ · Lᵢ(x)</p>
         <p>donde cada función cardinal es:</p>
         <p class="math-line">Lᵢ(x) = Π<sub>j≠i</sub> (x − xⱼ) / (xᵢ − xⱼ)</p>
-        <p class="hint">Agregá al menos 2 puntos para ver el desarrollo con tus nodos.</p>
+        <p class="hint">Agrega al menos 2 puntos para ver el desarrollo con tus nodos.</p>
       </div>`;
     return;
   }
