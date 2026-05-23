@@ -1,0 +1,48 @@
+schema: spec-driven
+
+context: |
+  Project: Ordinario-Mate — Lagrange Interpolation Visualizer
+  Stack: Frontend-only — HTML Canvas, Vanilla JS/TS (Vite), no backend
+  Architecture: Single-page app, pure client-side computation
+  Domain: Numerical Analysis — Lagrange polynomial interpolation, Runge phenomenon
+  Style: No framework; math-first, canvas rendering, responsive UI
+
+strict_tdd: false
+
+rules:
+  proposal:
+    - Include rollback plan for risky changes
+    - Identify affected canvas rendering vs. math computation modules
+  specs:
+    - Use Given/When/Then format for scenarios
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+    - Include mathematical correctness criteria
+  design:
+    - Document the interpolation algorithm with complexity analysis
+    - Separate concerns: math engine vs. canvas renderer vs. UI controller
+  tasks:
+    - Group tasks by phase (infrastructure, math engine, canvas renderer, UI)
+    - Use hierarchical numbering (1.1, 1.2, etc.)
+    - Keep tasks small enough to complete in one session
+  apply:
+    - Math functions must be pure (no side effects)
+    - Canvas rendering must be isolated from computation
+    - Prefer requestAnimationFrame for smooth real-time updates
+  verify:
+    - Verify polynomial passes exactly through all input points
+    - Verify Runge phenomenon is visually demonstrable with 10+ uniform nodes
+  archive:
+    - Warn before merging destructive deltas
+
+testing:
+  strict_tdd: false
+  note: "No test runner detected — project not yet initialized. Re-run sdd-init after npm init."
+  layers:
+    unit: false
+    integration: false
+    e2e: false
+  coverage: false
+  quality_tools:
+    linter: false
+    type_checker: false
+    formatter: false
