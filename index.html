@@ -342,11 +342,160 @@
         margin: 0;
         padding-left: 16px;
       }
-      .instructions-body li {
-        margin-bottom: 6px;
-      }
       .instructions-body li:last-child {
         margin-bottom: 0;
+      }
+
+      /* ── Card de Introducción Neumórfica ────────────────────────────── */
+      .intro-card {
+        grid-column: 1 / -1;
+        background: var(--bg);
+        border-radius: var(--r-lg);
+        box-shadow: var(--raised);
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .intro-header h2 {
+        margin: 0 0 12px 0;
+        font-size: 15px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--ink);
+      }
+      .intro-summary {
+        margin: 0 0 16px 0;
+        font-size: 12.5px;
+        line-height: 1.6;
+        color: var(--ink-soft);
+      }
+      .intro-summary strong {
+        color: var(--ink);
+        font-weight: 600;
+      }
+      .intro-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 4px;
+      }
+      .badge {
+        padding: 6px 12px;
+        font-size: 11px;
+        border-radius: var(--r-sm);
+        background: var(--bg);
+        box-shadow: var(--inset-sm);
+        color: var(--ink-soft);
+        font-weight: 500;
+      }
+      .badge-lbl {
+        color: var(--ink-faint);
+        font-weight: bold;
+        text-transform: uppercase;
+        margin-right: 4px;
+      }
+      .badge.alert {
+        color: #b91c1c;
+      }
+      .intro-toggle-btn {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        max-width: 280px;
+        margin: 0;
+        font-weight: 600;
+      }
+      .intro-toggle-btn .chev {
+        font-size: 11px;
+        transition: transform 220ms ease;
+      }
+      .intro-card.expanded .intro-toggle-btn .chev {
+        transform: rotate(180deg);
+      }
+      
+      .intro-body {
+        max-height: 0;
+        overflow: hidden;
+        opacity: 0;
+        transition: max-height 320ms cubic-bezier(0.4, 0, 0.2, 1), opacity 220ms ease, padding 220ms ease;
+        padding: 0;
+      }
+      .intro-card.expanded .intro-body {
+        max-height: 1500px;
+        opacity: 1;
+        padding: 16px 0 8px 0;
+        border-top: 1px dashed rgba(45, 55, 72, 0.15);
+      }
+      .intro-content h3 {
+        margin: 16px 0 8px 0;
+        font-size: 12.5px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--ink);
+        border-left: 3px solid var(--shadow-dark);
+        padding-left: 8px;
+      }
+      .intro-content p {
+        margin: 0 0 12px 0;
+        font-size: 12px;
+        line-height: 1.6;
+        color: var(--ink-soft);
+      }
+      .intro-content strong {
+        color: var(--ink);
+      }
+      
+      .math-expr-block {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 12px;
+        margin: 14px 0;
+        border-radius: var(--r-md);
+        box-shadow: var(--inset);
+        background: var(--bg);
+        font-size: 14px;
+        color: var(--ink);
+      }
+      .math-expr-block-frac {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 6px 12px;
+        margin: 14px 0;
+        border-radius: var(--r-md);
+        box-shadow: var(--inset);
+        background: var(--bg);
+        font-size: 14px;
+        color: var(--ink);
+      }
+      .math-sig {
+        font-size: 20px;
+        font-weight: 300;
+        color: var(--ink);
+      }
+      
+      .links-title {
+        margin-top: 18px !important;
+        font-weight: 500;
+      }
+      .ref-links {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 14px;
+        margin-top: 12px;
+      }
+      .ref-btn {
+        text-align: center;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 500;
       }
     </style>
   </head>
@@ -361,6 +510,77 @@
           <kbd>rueda</kbd> zoom
         </div>
       </header>
+
+      <section id="intro-section" class="intro-card">
+        <div class="intro-header">
+          <h2>Visualizador del Polinomio de Lagrange</h2>
+          <p class="intro-summary">
+            Este software es un <strong>entorno interactivo y visual</strong> diseñado para el estudio del <strong>Polinomio de Interpolación de Lagrange</strong>. Su propósito es permitirte trazar puntos (nodos) libremente en el plano y observar en tiempo real cómo se construye el único polinomio de grado menor o igual a <em>n</em> que pasa exactamente por todos ellos. Esto facilita enormemente el análisis del comportamiento del polinomio interpolante, de sus bases cardinales y del célebre fenómeno de Runge.
+          </p>
+          <div class="intro-badges">
+            <span class="badge"><span class="badge-lbl">Método:</span> Interpolación de Lagrange</span>
+            <span class="badge"><span class="badge-lbl">Complejidad:</span> O(n²)</span>
+            <span class="badge"><span class="badge-lbl">Grado:</span> ≤ n</span>
+            <span class="badge alert"><span class="badge-lbl">Estabilidad:</span> Sensible a Runge</span>
+          </div>
+        </div>
+        <button id="intro-toggle" class="btn intro-toggle-btn" aria-expanded="false">
+          <span>Saber más sobre el método</span>
+          <span class="chev">▼</span>
+        </button>
+        <div id="intro-body" class="intro-body">
+          <div class="intro-content">
+            <h3>¿Qué es y para qué sirve?</h3>
+            <p>
+              La interpolación polinómica resuelve un problema fundamental en el análisis numérico y la ciencia de datos: <strong>encontrar una función continua simple que pase exactamente por un conjunto de puntos experimentales</strong>. Esto te permite estimar (interpolar) valores intermedios donde no tenés mediciones directas.
+            </p>
+            <p>
+              El método de Lagrange es brillante porque nos da una <strong>fórmula explícita directa</strong> para construir este polinomio, sin necesidad de resolver sistemas de ecuaciones lineales complejos (como los que surgen al usar coeficientes indeterminados).
+            </p>
+
+            <h3>Fundamentos Matemáticos</h3>
+            <p>
+              Dados <em>n + 1</em> puntos con coordenadas X distintas, el polinomio interpolador de Lagrange de grado menor o igual a <em>n</em> se define como la combinación lineal:
+            </p>
+            <div class="math-expr-block">
+              P(x) = <span class="math-sig">Σ</span><sub>i=0</sub><sup>n</sup> y<sub>i</sub> · L<sub>i</sub>(x)
+            </div>
+            <p>
+              Donde cada <strong>L<sub>i</sub>(x)</strong> es un polinomio base cardinal (o de Lagrange) definido como un producto de factores:
+            </p>
+            <div class="math-expr-block-frac">
+              L<sub>i</sub>(x) = <span class="math-sig">Π</span><sub>j ≠ i</sub> 
+              <div class="frac">
+                <div class="frac-top">(x − x<sub>j</sub>)</div>
+                <div class="frac-bar"></div>
+                <div class="frac-bot">(x<sub>i</sub> − x<sub>j</sub>)</div>
+              </div>
+            </div>
+            <p>
+              <strong>La Propiedad Cardinal:</strong> La magia detrás del método es que cada base L<sub>i</sub>(x) cumple que vale <strong>1</strong> en su propio nodo x<sub>i</sub>, y vale <strong>0</strong> en todos los demás nodos x<sub>j</sub> (con j ≠ i). Por lo tanto, al evaluar P(x) en cualquier nodo, todos los términos excepto el i-ésimo se anulan, garantizando que P(x<sub>i</sub>) = y<sub>i</sub>.
+            </p>
+
+            <h3>El Fenómeno de Runge y Nodos de Chebyshev</h3>
+            <p>
+              ¡Cuidado! Colocar más nodos no siempre da una mejor curva. Si distribuís muchos puntos (n ≥ 10) de forma <strong>igualmente espaciada</strong>, vas a notar oscilaciones violentas cerca de los extremos del intervalo. Esto se conoce como el <strong>Fenómeno de Runge</strong>. 
+            </p>
+            <p>
+              Para solucionarlo de forma óptima, en la práctica se usan los <strong>Nodos de Chebyshev</strong>, los cuales no están distribuidos de forma uniforme, sino que se concentran densamente cerca de los extremos, minimizando el error de interpolación y eliminando las oscilaciones.
+            </p>
+
+            <h3>Documentación Científica y Referencias</h3>
+            <p class="links-title">Si querés profundizar de manera formal y rigurosa en el método, te recomendamos consultar las siguientes fuentes académicas:</p>
+            <div class="ref-links">
+              <a href="https://mathworld.wolfram.com/LagrangeInterpolatingPolynomial.html" target="_blank" rel="noopener noreferrer" class="btn ref-btn">
+                <span>Wolfram MathWorld</span>
+              </a>
+              <a href="https://people.maths.ox.ac.uk/trefethen/barycentric.pdf" target="_blank" rel="noopener noreferrer" class="btn ref-btn">
+                <span>SIAM Review (Oxford Univ.)</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
 
       <section class="canvas-card">
         <div class="canvas-wrap">

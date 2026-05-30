@@ -30,6 +30,10 @@ const inputError = document.getElementById('input-error') as HTMLDivElement;
 const instructionsCard = document.getElementById('instructions-card')!;
 const instructionsToggle = document.getElementById('instructions-toggle')!;
 
+// Referencias para la introducción enriquecida
+const introCard = document.getElementById('intro-section')!;
+const introToggle = document.getElementById('intro-toggle')!;
+
 // ── Estado de la aplicación ───────────────────────────────────────────────────
 
 /** Paleta de colores armónicos para los nodos */
@@ -292,6 +296,16 @@ function hideInputError(): void {
 instructionsToggle.addEventListener('click', () => {
   const expanded = instructionsCard.classList.toggle('expanded');
   instructionsToggle.setAttribute('aria-expanded', String(expanded));
+});
+
+// Evento de introducción colapsable
+introToggle.addEventListener('click', () => {
+  const expanded = introCard.classList.toggle('expanded');
+  introToggle.setAttribute('aria-expanded', String(expanded));
+  const chev = introToggle.querySelector('.chev');
+  if (chev) {
+    chev.textContent = expanded ? '▲' : '▼';
+  }
 });
 
 // ── Sincronización de la UI ───────────────────────────────────────────────────
