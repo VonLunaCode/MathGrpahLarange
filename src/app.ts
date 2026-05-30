@@ -8,7 +8,7 @@
  *  3. Panel matemático: desarrollo paso a paso de Lᵢ(x) y P(x) en HTML.
  */
 import type { Point, ViewState } from './types';
-import { lagrangeBasis, evaluate } from './lagrange';
+import { lagrangeBasis } from './lagrange';
 import { draw, w2s, s2w } from './renderer';
 
 // ── Referencias al DOM ────────────────────────────────────────────────────────
@@ -22,10 +22,30 @@ const mathPanel  = document.getElementById('math-body')!;
 const mathToggle = document.getElementById('math-toggle')!;
 const mathSection = document.getElementById('math-section')!;
 
+// Referencias nuevas para ingreso manual e instrucciones
+const inputX     = document.getElementById('input-x') as HTMLInputElement;
+const inputY     = document.getElementById('input-y') as HTMLInputElement;
+const addBtn     = document.getElementById('add-btn') as HTMLButtonElement;
+const inputError = document.getElementById('input-error') as HTMLDivElement;
+const instructionsCard = document.getElementById('instructions-card')!;
+const instructionsToggle = document.getElementById('instructions-toggle')!;
+
 // ── Estado de la aplicación ───────────────────────────────────────────────────
+
+/** Paleta de colores armónicos para los nodos */
+const COLORS = ['#4f46e5', '#059669', '#d97706', '#e11d48', '#7c3aed', '#0891b2'];
 
 /** Lista de nodos de interpolación, siempre ordenada por x creciente. */
 const nodes: Point[] = [];
+
+/** Retorna el siguiente color disponible en la paleta, priorizando los no usados. */
+function getNextColor(): string {
+  const used = new Set(nodes.map(n => n.color));
+  for (const c of COLORS) {
+    if (!used.has(c)) return c;
+  }
+  return COLORS[nodes.length % COLORS.length];
+}
 
 /** Índice del nodo sobre el que está el cursor (−1 = ninguno). */
 let hoverIndex: number | null = null;
@@ -82,7 +102,7 @@ function resizeCanvas(): void {
 function toPixel(p: Point): [number, number] { return w2s(p.x, p.y, view, cssW, cssH); }
 
 /** Convierte píxeles CSS del mouse a coordenadas matemáticas. */
-function toMath(px: number, py: number): Point {
+function toMath(px: number, py: number): { x: number; y: number } {
   const [x, y] = s2w(px, py, view, cssW, cssH);
   return { x, y };
 }
@@ -139,7 +159,8 @@ canvas.addEventListener('mousedown', (e) => {
   if (idx !== null) {
     dragIndex = idx;
   } else {
-    const newNode = toMath(px, py);
+    const mathCoords = toMath(px, py);
+    const newNode: Point = { ...mathCoords, color: getNextColor() };
     nodes.push(newNode);
     nodes.sort((a, b) => a.x - b.x); // mantener orden por x para evaluate
     dragIndex = nodes.indexOf(newNode);
@@ -161,7 +182,8 @@ canvas.addEventListener('mousemove', (e) => {
   }
 
   if (dragIndex !== null) {
-    nodes[dragIndex] = toMath(px, py);
+    const originalColor = nodes[dragIndex].color;
+    nodes[dragIndex] = { ...toMath(px, py), color: originalColor };
     sync();
     return;
   }
@@ -220,12 +242,56 @@ clearBtn.addEventListener('click', () => {
   nodes.splice(0, nodes.length);
   hoverIndex = null;
   dragIndex  = null;
+  hideInputError();
   sync();
 });
 
 mathToggle.addEventListener('click', () => {
   const collapsed = mathSection.classList.toggle('collapsed');
   mathToggle.setAttribute('aria-expanded', String(!collapsed));
+});
+
+// Eventos de ingreso manual
+addBtn.addEventListener('click', () => {
+  const xVal = parseFloat(inputX.value);
+  const yVal = parseFloat(inputY.value);
+
+  if (isNaN(xVal) || isNaN(yVal)) {
+    showInputError('Ingresá valores numéricos válidos.');
+    return;
+  }
+
+  // Validar unicidad de X (evita división por cero en Lagrange)
+  const collision = nodes.some(n => Math.abs(n.x - xVal) < 1e-5);
+  if (collision) {
+    showInputError(`Ya existe un nodo con X = ${fmt(xVal, 3)}.`);
+    return;
+  }
+
+  hideInputError();
+  const newNode: Point = { x: xVal, y: yVal, color: getNextColor() };
+  nodes.push(newNode);
+  nodes.sort((a, b) => a.x - b.x);
+
+  inputX.value = '';
+  inputY.value = '';
+  sync();
+});
+
+function showInputError(msg: string): void {
+  inputError.textContent = msg;
+  inputError.style.display = 'block';
+}
+
+function hideInputError(): void {
+  inputError.style.display = 'none';
+  inputError.textContent = '';
+}
+
+// Evento de instrucciones colapsables
+instructionsToggle.addEventListener('click', () => {
+  const expanded = instructionsCard.classList.toggle('expanded');
+  instructionsToggle.setAttribute('aria-expanded', String(expanded));
 });
 
 // ── Sincronización de la UI ───────────────────────────────────────────────────
@@ -241,7 +307,9 @@ function syncList(): void {
     nodeListEl.innerHTML = nodes.map((n, i) => {
       const hov = i === hoverIndex ? ' is-hover' : '';
       return `<div class="node-row${hov}">
-        <span class="node-idx">x<sub>${i}</sub></span>
+        <span class="node-idx">
+          <span class="legend-dot" style="background-color: ${n.color};"></span>x<sub>${i}</sub>
+        </span>
         <span class="node-val">(${fmt(n.x)}, ${fmt(n.y)})</span>
       </div>`;
     }).join('');
@@ -289,8 +357,8 @@ function syncMath(): void {
       denomVal *= xi - xj;
     }
     parts.push(`
-      <div class="math-step">
-        <div class="step-label">L<sub>${i}</sub>(x)</div>
+      <div class="math-step" style="border-left: 4px solid ${nodes[i].color};">
+        <div class="step-label" style="color: ${nodes[i].color}; font-weight: bold;">L<sub>${i}</sub>(x)</div>
         <div class="step-expr">
           <div class="frac">
             <div class="frac-top">${num.join(' · ')}</div>
@@ -302,11 +370,11 @@ function syncMath(): void {
   }
 
   // Sección 2: ensamble del polinomio P(x) = Σ yᵢ · Lᵢ(x)
-  const assembly = nodes.map((n, i) => `${fmt(n.y)} · L<sub>${i}</sub>(x)`).join('  +  ');
+  const assembly = nodes.map((n, i) => `<span style="color: ${n.color}; font-weight: bold; padding: 2px 6px; border-radius: 4px; background: ${n.color}11;">${fmt(n.y)} · L<sub>${i}</sub>(x)</span>`).join('  +  ');
   parts.push(`
     <div class="math-step assembly">
       <div class="step-label">P(x)</div>
-      <div class="step-expr">${assembly}</div>
+      <div class="step-expr" style="line-height: 2;">${assembly}</div>
     </div>`);
 
   // Sección 3: tabla de pesos baricéntricos wᵢ = 1 / Π_{j≠i}(xᵢ − xⱼ)
@@ -314,7 +382,7 @@ function syncMath(): void {
     let d = 1;
     for (let j = 0; j < nodes.length; j++) if (j !== i) d *= nodes[i].x - nodes[j].x;
     return `<tr>
-      <td>i = ${i}</td>
+      <td><span class="legend-dot" style="background-color: ${n.color};"></span>i = ${i}</td>
       <td>x<sub>${i}</sub> = ${fmt(n.x)}</td>
       <td>y<sub>${i}</sub> = ${fmt(n.y)}</td>
       <td>1 / Π(x<sub>${i}</sub> − x<sub>j</sub>) = ${fmt(1 / d, 4)}</td>
@@ -339,8 +407,8 @@ function syncMath(): void {
       `L<sub>${i}</sub>(x<sub>${k}</sub>) = ${fmt(lagrangeBasis(nodes, i, nodes[k].x), 3)}`
     );
     parts.push(`
-      <div class="math-step verify">
-        <div class="step-label">Verif · i=${i}</div>
+      <div class="math-step verify" style="border-left: 4px solid ${nodes[i].color};">
+        <div class="step-label" style="color: ${nodes[i].color}; font-weight: bold;">Verif · i=${i}</div>
         <div class="step-expr">${checks.join('  ·  ')}</div>
       </div>`);
   }
@@ -367,6 +435,11 @@ window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
 
 // Nodos de ejemplo tomados del ejercicio de clase para demostración inicial
-nodes.push({ x: -3, y: 1 }, { x: -1, y: -2 }, { x: 2, y: 1.5 }, { x: 4, y: -0.5 });
+nodes.push(
+  { x: -3, y: 1, color: COLORS[0] },
+  { x: -1, y: -2, color: COLORS[1] },
+  { x: 2, y: 1.5, color: COLORS[2] },
+  { x: 4, y: -0.5, color: COLORS[3] }
+);
 nodes.sort((a, b) => a.x - b.x);
 sync();

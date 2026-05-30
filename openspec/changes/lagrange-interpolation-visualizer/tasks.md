@@ -56,7 +56,7 @@ Chain strategy: size-exception
 
 ## Phase 5: Verification
 
-- [ ] 5.1 Place 3 points matching class example (0,1), (1,2.718), (2,54.5198) — verify curve passes through all three and formula shows P₂(x) ≈ 25.041x² − 23.323x + 1
-- [ ] 5.2 Add 11+ evenly-spaced points across canvas — verify Runge oscillations are visible near canvas edges
-- [ ] 5.3 Zoom in/out with wheel and pan by drag — verify grid, axes, and curve redraw correctly
-- [ ] 5.4 Click an existing point — verify it is removed and curve updates
+- [x] 5.1 Place 3 points matching class example (0,1), (1,2.718), (2,54.5198) — verify curve passes through all three and formula shows P₂(x) ≈ 25.041x² − 23.323x + 1
+- [x] 5.2 Add 11+ evenly-spaced points across canvas — verify Runge oscillations are visible near canvas edges
+- [x] 5.3 Zoom in/out with wheel and pan by drag — verify grid, axes, and curve redraw correctly
+- [x] 5.4 Click an existing point — verify it is removed and curve updates

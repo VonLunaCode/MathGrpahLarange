@@ -2,7 +2,7 @@
  * Punto en el plano cartesiano con coordenadas matemáticas.
  * Representa un nodo de interpolación (xᵢ, yᵢ = f(xᵢ)).
  */
-export type Point = { x: number; y: number };
+export type Point = { x: number; y: number; color: string };
 
 /**
  * Estado de la cámara del canvas.

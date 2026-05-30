@@ -239,6 +239,115 @@
         .app { grid-template-columns: 1fr; }
         .canvas-wrap { height: 420px; }
       }
+
+      /* ── Leyenda de colores y estilos nuevos ────────────────────────── */
+      .legend-dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-right: 8px;
+        vertical-align: middle;
+      }
+
+      .input-card {
+        padding: 16px;
+        border-radius: var(--r-md);
+        box-shadow: var(--inset);
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .input-row {
+        display: flex;
+        gap: 12px;
+      }
+      .input-group {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .input-group label {
+        font-size: 11px;
+        color: var(--ink-faint);
+        font-weight: bold;
+        text-transform: uppercase;
+      }
+      .input-group input {
+        width: 100%;
+        font-family: var(--mono);
+        font-size: 13px;
+        color: var(--ink);
+        background: var(--bg);
+        border: none;
+        padding: 8px 10px;
+        border-radius: var(--r-sm);
+        box-shadow: var(--raised-sm);
+        outline: none;
+        transition: box-shadow 120ms ease;
+      }
+      .input-group input:focus {
+        box-shadow: var(--inset-sm);
+      }
+      .input-error {
+        font-size: 11px;
+        color: #dc2626;
+        padding: 0 4px;
+        line-height: 1.3;
+      }
+
+      .instructions-card {
+        background: var(--bg);
+        border-radius: var(--r-md);
+        box-shadow: var(--raised-sm);
+        overflow: hidden;
+      }
+      .instructions-head {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 14px;
+        background: transparent;
+        border: none;
+        font-family: var(--mono);
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        cursor: pointer;
+        color: var(--ink-soft);
+      }
+      .instructions-head .chev {
+        transition: transform 220ms ease;
+        font-size: 10px;
+      }
+      .instructions-card.expanded .instructions-head .chev {
+        transform: rotate(180deg);
+      }
+      .instructions-body {
+        max-height: 0;
+        overflow: hidden;
+        padding: 0 14px;
+        font-size: 11.5px;
+        color: var(--ink-soft);
+        transition: max-height 280ms ease, padding 280ms ease;
+        line-height: 1.4;
+      }
+      .instructions-card.expanded .instructions-body {
+        max-height: 250px;
+        padding-bottom: 14px;
+      }
+      .instructions-body ul {
+        margin: 0;
+        padding-left: 16px;
+      }
+      .instructions-body li {
+        margin-bottom: 6px;
+      }
+      .instructions-body li:last-child {
+        margin-bottom: 0;
+      }
     </style>
   </head>
   <body>
@@ -276,6 +385,39 @@
         <h2>Nodos actuales</h2>
         <div class="nodes" id="node-list">
           <div class="empty">No hay nodos. Haz clic en el canvas para agregar.</div>
+        </div>
+
+        <h2>Agregar nodo manual</h2>
+        <div class="input-card">
+          <div class="input-row">
+            <div class="input-group">
+              <label for="input-x">x</label>
+              <input type="number" id="input-x" step="any" placeholder="0">
+            </div>
+            <div class="input-group">
+              <label for="input-y">y</label>
+              <input type="number" id="input-y" step="any" placeholder="0">
+            </div>
+          </div>
+          <button id="add-btn" class="btn">Agregar Punto</button>
+          <div id="input-error" class="input-error" style="display: none;"></div>
+        </div>
+
+        <div id="instructions-card" class="instructions-card">
+          <button id="instructions-toggle" class="instructions-head">
+            <span>Instrucciones de uso</span>
+            <span class="chev">▼</span>
+          </button>
+          <div class="instructions-body">
+            <ul>
+              <li><strong>Click izquierdo</strong>: Agregar nodo en canvas.</li>
+              <li><strong>Arrastrar</strong>: Mover nodo libremente.</li>
+              <li><strong>Click derecho</strong>: Eliminar nodo.</li>
+              <li><strong>Shift + Arrastrar</strong>: Desplazar plano (paneo).</li>
+              <li><strong>Rueda mouse</strong>: Zoom en el cursor.</li>
+              <li><strong>Formulario</strong>: Coordenadas exactas (X debe ser único).</li>
+            </ul>
+          </div>
         </div>
 
         <button id="clear-btn" class="btn full">Limpiar todo</button>

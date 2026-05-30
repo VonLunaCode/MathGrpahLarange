@@ -154,12 +154,13 @@ export function drawNodes(
     const [sx, sy] = w2s(nodes[i].x, nodes[i].y, v, W, H);
     const isHover = hoverIndex === i;
     const r = isHover ? 9 : 6;
+    const color = nodes[i].color || '#2d3748';
 
     // Capa 1: halo de hover
     if (isHover) {
       ctx.beginPath();
       ctx.arc(sx, sy, 14, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(45, 55, 72, 0.12)';
+      ctx.fillStyle = color + '26'; // ~15% opacidad
       ctx.fill();
     }
 
@@ -168,14 +169,14 @@ export function drawNodes(
     ctx.arc(sx, sy, r, 0, Math.PI * 2);
     ctx.fillStyle = '#e0e5ec';
     ctx.fill();
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = isHover ? '#2d3748' : 'rgba(45, 55, 72, 0.7)';
+    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = color;
     ctx.stroke();
 
     // Capa 3: punto central
     ctx.beginPath();
     ctx.arc(sx, sy, isHover ? 3 : 2.2, 0, Math.PI * 2);
-    ctx.fillStyle = '#2d3748';
+    ctx.fillStyle = color;
     ctx.fill();
   }
 }
