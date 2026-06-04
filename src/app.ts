@@ -8,7 +8,12 @@
  *  3. Panel matemático: desarrollo paso a paso de Lᵢ(x) y P(x) en HTML.
  */
 import type { Point, ViewState } from './types';
-import { lagrangeBasis } from './lagrange';
+import { lagrangeBasis, numeratorCoefficients, denominator, getCoefficients } from './lagrange';
+import type { Frac } from './rational';
+import {
+  toFraction, fToHtml, pToHtml,
+  lagrangeNumerator, lagrangeDenominator, lagrangeDevelopExact,
+} from './rational';
 import { draw, w2s, s2w } from './renderer';
 
 // ── Referencias al DOM ────────────────────────────────────────────────────────
@@ -134,6 +139,78 @@ function fmt(n: number, d = 3): string {
   if (!isFinite(n)) return '∞';
   const r = Number(n.toFixed(d));
   return Object.is(r, -0) ? (0).toFixed(d) : r.toFixed(d);
+}
+
+/** Exponentes en superíndice unicode para los términos del polinomio. */
+const SUP = ['', 'x', 'x²', 'x³', 'x⁴', 'x⁵', 'x⁶', 'x⁷', 'x⁸', 'x⁹'];
+
+/**
+ * Convierte un arreglo de coeficientes [a₀, a₁, a₂, …] a una cadena legible
+ * tipo "a₀ + a₁x + a₂x² + …", como se escribiría a mano:
+ *  - omite términos que redondean a 0,
+ *  - omite el coeficiente 1 (salvo en el término constante),
+ *  - separa los términos con + / − y deja el primero sin signo si es positivo.
+ */
+function polyToString(coeffs: number[], d = 3): string {
+  let out = '';
+  let first = true;
+  for (let k = coeffs.length - 1; k >= 0; k--) {
+    const c = Number(coeffs[k].toFixed(d));
+    if (c === 0) continue;
+    const mag = Math.abs(c);
+    const power = k < SUP.length ? SUP[k] : `x^${k}`;
+    const coefStr = (mag === 1 && k > 0) ? '' : fmt(mag, d); // "1x" → "x"
+    const body = `${coefStr}${power}`;
+    if (first) {
+      out = (c < 0 ? '−' : '') + body;
+      first = false;
+    } else {
+      out += (c < 0 ? ' − ' : ' + ') + body;
+    }
+  }
+  return out === '' ? '0' : out;
+}
+
+/**
+ * Formatea un número como fracción exacta si es racional con denominador
+ * chico (ej: 1.5 → "3/2", −0.5 → "−1/2"); si no, cae a decimal (ej: un
+ * float arbitrario de un clic). Es el puente entre el modo exacto y el decimal.
+ */
+function fmtNum(x: number): string {
+  const f = toFraction(x);
+  return f ? fToHtml(f) : fmt(x);
+}
+
+/**
+ * Intenta convertir todos los nodos a fracciones exactas (x e y).
+ * Devuelve null si algún valor no es racional con denominador chico, lo que
+ * indica a syncMath que debe mostrar el desarrollo en decimal.
+ */
+function nodesToFrac(nodeList: Point[]): { xs: Frac[]; ys: Frac[] } | null {
+  const xs: Frac[] = [], ys: Frac[] = [];
+  for (const n of nodeList) {
+    const fx = toFraction(n.x), fy = toFraction(n.y);
+    if (!fx || !fy) return null;
+    xs.push(fx); ys.push(fy);
+  }
+  return { xs, ys };
+}
+
+/**
+ * Numerador factorizado de Lᵢ(x): Π_{j≠i} (x − xⱼ), con signos simplificados
+ * para que se lea como en clase: (x − (−1)) se muestra como (x + 1).
+ * Los valores se muestran como fracción cuando son racionales.
+ */
+function factoredNumerator(nodeList: Point[], i: number): string {
+  const factors: string[] = [];
+  for (let j = 0; j < nodeList.length; j++) {
+    if (j === i) continue;
+    const xj = nodeList[j].x;
+    if (Number(xj.toFixed(6)) === 0) factors.push('(x)');
+    else if (xj < 0)                 factors.push(`(x + ${fmtNum(-xj)})`);
+    else                             factors.push(`(x − ${fmtNum(xj)})`);
+  }
+  return factors.join('');
 }
 
 // ── Eventos del mouse ─────────────────────────────────────────────────────────
@@ -335,10 +412,11 @@ function syncList(): void {
  * Genera el desarrollo matemático de Lagrange en HTML y lo inyecta en el panel.
  *
  * Con menos de 2 nodos: muestra el placeholder con la teoría del método.
- * Con 2+ nodos, genera tres secciones:
- *  1. Una tarjeta por cada Lᵢ(x) mostrando numerador/denominador como fracción.
- *  2. El ensamble final: P(x) = y₀·L₀(x) + y₁·L₁(x) + …
- *  3. Tabla de pesos wᵢ = 1 / Π(xᵢ − xⱼ) para referencia rápida.
+ * Con 2+ nodos, genera estas secciones:
+ *  1. Una tarjeta por cada Lᵢ(x): sustitución, denominador resuelto,
+ *     numerador expandido a polinomio y aporte f(xᵢ)·Lᵢ(x).
+ *  2. El ensamble: P(x) = f(x₀)·L₀(x) + f(x₁)·L₁(x) + …
+ *  3. El polinomio final desarrollado: P(x) = a₀ + a₁x + a₂x² + …
  *  4. Verificación de la propiedad cardinal para el nodo en hover.
  */
 function syncMath(): void {
@@ -346,9 +424,9 @@ function syncMath(): void {
     mathPanel.innerHTML = `
       <div class="math-placeholder">
         <p><strong>Método de Lagrange.</strong> Dados <code>n+1</code> nodos
-        <code>(x₀, y₀), …, (xₙ, yₙ)</code> con abscisas distintas, el único
+        <code>(x₀, f(x₀)), …, (xₙ, f(xₙ))</code> con abscisas distintas, el único
         polinomio de grado ≤ n que pasa por todos ellos es:</p>
-        <p class="math-line">P(x) = Σᵢ yᵢ · Lᵢ(x)</p>
+        <p class="math-line">P(x) = Σᵢ f(xᵢ) · Lᵢ(x)</p>
         <p>donde cada función cardinal es:</p>
         <p class="math-line">Lᵢ(x) = Π<sub>j≠i</sub> (x − xⱼ) / (xᵢ − xⱼ)</p>
         <p class="hint">Agrega al menos 2 puntos para ver el desarrollo con tus nodos.</p>
@@ -358,60 +436,92 @@ function syncMath(): void {
 
   const parts: string[] = [];
 
-  // Sección 1: función cardinal Lᵢ(x) con valores numéricos sustituidos
+  // ¿Todos los nodos son racionales? Si lo son, el desarrollo del polinomio
+  // se muestra en fracciones EXACTAS; si hay algún float (típico de un clic
+  // arbitrario) el desarrollo cae a decimal, porque no se puede fraccionar.
+  const ex = nodesToFrac(nodes);
+
+  /** Denominador de Lᵢ(x): fracción apilada si se puede, decimal si no. */
+  const denomStr = (i: number): string =>
+    ex ? fToHtml(lagrangeDenominator(ex.xs, i)) : fmt(denominator(nodes, i), 4);
+
+  /** Numerador de Lᵢ(x) expandido: fracciones apiladas o decimal. */
+  const numStr = (i: number): string =>
+    ex ? pToHtml(lagrangeNumerator(ex.xs, i)) : polyToString(numeratorCoefficients(nodes, i));
+
+  if (!ex) {
+    parts.push(`<div class="math-note">Algún punto no es racional (float de un clic):
+      el desarrollo se muestra en <strong>decimal</strong>. Usá coordenadas
+      enteras o fracciones simples para ver fracciones exactas.</div>`);
+  }
+
+  // Sección 1: función cardinal Lᵢ(x) desarrollada paso a paso, como a mano:
+  //  1. sustitución de los xⱼ en numerador y denominador,
+  //  2. denominador resuelto a un número,
+  //  3. numerador expandido a polinomio,
+  //  4. aporte del punto al polinomio final: f(xᵢ) · Lᵢ(x).
   for (let i = 0; i < nodes.length; i++) {
     const xi = nodes[i].x;
-    const num: string[] = [], den: string[] = [];
-    let denomVal = 1;
+    const den: string[] = [];
     for (let j = 0; j < nodes.length; j++) {
       if (j === i) continue;
       const xj = nodes[j].x;
-      num.push(`(x − ${fmt(xj)})`);
-      den.push(`(${fmt(xi)} − ${fmt(xj)})`);
-      denomVal *= xi - xj;
+      // El sustraendo negativo va entre paréntesis: (−3 − (−1))
+      const sub = xj < 0 ? `(${fmtNum(xj)})` : fmtNum(xj);
+      den.push(`(${fmtNum(xi)} − ${sub})`);
     }
+
     parts.push(`
       <div class="math-step" style="border-left: 4px solid ${nodes[i].color};">
         <div class="step-label" style="color: ${nodes[i].color}; font-weight: bold;">L<sub>${i}</sub>(x)</div>
         <div class="step-expr">
           <div class="frac">
-            <div class="frac-top">${num.join(' · ')}</div>
+            <div class="frac-top">${factoredNumerator(nodes, i)}</div>
             <div class="frac-bar"></div>
-            <div class="frac-bot">${den.join(' · ')} = ${fmt(denomVal, 4)}</div>
+            <div class="frac-bot">${den.join(' · ')} = ${denomStr(i)}</div>
+          </div>
+          <div class="poly-line">= ( ${numStr(i)} ) / (${denomStr(i)})</div>
+          <div class="contrib" style="color: ${nodes[i].color};">
+            aporte: f(x<sub>${i}</sub>) · L<sub>${i}</sub>(x) = ${fmtNum(nodes[i].y)} · L<sub>${i}</sub>(x)
           </div>
         </div>
       </div>`);
   }
 
-  // Sección 2: ensamble del polinomio P(x) = Σ yᵢ · Lᵢ(x)
-  const assembly = nodes.map((n, i) => `<span style="color: ${n.color}; font-weight: bold; padding: 2px 6px; border-radius: 4px; background: ${n.color}11;">${fmt(n.y)} · L<sub>${i}</sub>(x)</span>`).join('  +  ');
+  // Sección 2: ensamble del polinomio P(x) = Σ f(xᵢ) · Lᵢ(x).
+  //  - Primera línea: forma simbólica, tal como la enseña el método.
+  //  - Segunda línea: cada f(xᵢ) sustituido por su valor y cada Lᵢ(x)
+  //    reemplazado por su desarrollo real (numerador / denominador).
+  const symbolic = nodes.map((n, i) =>
+    `<span style="color: ${n.color}; font-weight: bold; padding: 2px 6px; border-radius: 4px; background: ${n.color}11;">f(x<sub>${i}</sub>) · L<sub>${i}</sub>(x)</span>`
+  ).join('  +  ');
+  const realValues = nodes.map((n, i) => {
+    const v = fmtNum(n.y);
+    const val = n.y < 0 ? `(${v})` : v;
+    return `<span style="color: ${n.color};">${val} · ( ${numStr(i)} )/(${denomStr(i)})</span>`;
+  }).join('  +  ');
   parts.push(`
     <div class="math-step assembly">
       <div class="step-label">P(x)</div>
-      <div class="step-expr" style="line-height: 2;">${assembly}</div>
-    </div>`);
-
-  // Sección 3: tabla de pesos baricéntricos wᵢ = 1 / Π_{j≠i}(xᵢ − xⱼ)
-  const weights = nodes.map((n, i) => {
-    let d = 1;
-    for (let j = 0; j < nodes.length; j++) if (j !== i) d *= nodes[i].x - nodes[j].x;
-    return `<tr>
-      <td><span class="legend-dot" style="background-color: ${n.color};"></span>i = ${i}</td>
-      <td>x<sub>${i}</sub> = ${fmt(n.x)}</td>
-      <td>y<sub>${i}</sub> = ${fmt(n.y)}</td>
-      <td>1 / Π(x<sub>${i}</sub> − x<sub>j</sub>) = ${fmt(1 / d, 4)}</td>
-    </tr>`;
-  }).join('');
-  parts.push(`
-    <div class="math-step">
-      <div class="step-label">Pesos</div>
-      <div class="step-expr">
-        <table class="weights">
-          <thead><tr><th>i</th><th>x<sub>i</sub></th><th>y<sub>i</sub></th><th>w<sub>i</sub></th></tr></thead>
-          <tbody>${weights}</tbody>
-        </table>
+      <div class="step-expr" style="line-height: 2;">
+        <div>${symbolic}</div>
+        <div style="margin-top: 6px; color: var(--ink-soft);">= ${realValues}</div>
       </div>
     </div>`);
+
+  // Sección 3: polinomio final colectando todos los términos.
+  //   P(x) = a₀ + a₁x + a₂x² + …
+  // Suma de cada aporte f(xᵢ)·Lᵢ(x) agrupado por potencia: el último paso
+  // que harías a mano. En fracciones exactas si los datos son racionales.
+  const finalPoly = ex ? pToHtml(lagrangeDevelopExact(ex.xs, ex.ys))
+                       : (() => { const c = getCoefficients(nodes); return c ? polyToString(c) : null; })();
+  if (finalPoly) {
+    parts.push(`
+      <div class="math-step assembly">
+        <div class="step-label">P(x) desarrollado</div>
+        <div class="step-expr poly-final">P(x) = ${finalPoly}</div>
+      </div>`);
+  }
 
   // Sección 4: verificación de la propiedad cardinal L_i(x_k) = δ_{ik}
   // Solo se muestra cuando el cursor está sobre un nodo específico.

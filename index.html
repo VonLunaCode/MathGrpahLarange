@@ -230,10 +230,21 @@
       .frac-top, .frac-bot { padding: 4px 2px; }
       .frac-bar { width: 100%; height: 1.5px; background: var(--ink-soft); margin: 2px 0; }
 
-      .weights { border-collapse: separate; border-spacing: 0; font-size: 12.5px; width: 100%; }
-      .weights th, .weights td { padding: 6px 12px; text-align: left; color: var(--ink); }
-      .weights th { color: var(--ink-faint); font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; font-size: 10px; }
-      .weights tbody tr td { border-top: 1px dashed rgba(45,55,72,0.15); }
+      /* Desarrollo polinómico de cada Lᵢ(x) y aporte del punto */
+      .poly-line { margin-top: 8px; font-size: 13px; color: var(--ink-soft); }
+      .contrib { margin-top: 6px; font-size: 12.5px; font-weight: 600; }
+      .poly-final { font-weight: 600; }
+
+      /* Aviso cuando algún nodo no es racional y el desarrollo cae a decimal */
+      .math-note { font-size: 12px; color: var(--ink-soft); padding: 8px 12px;
+        border-radius: var(--r-md); box-shadow: var(--inset); line-height: 1.45; }
+
+      /* Fracción apilada inline: numerador sobre denominador con barra.
+         Usa currentColor en la barra para heredar el color del término. */
+      .ifrac { display: inline-flex; flex-direction: column; align-items: center;
+        vertical-align: middle; margin: 0 2px; line-height: 1.1; }
+      .ifrac-n { padding: 0 4px; }
+      .ifrac-d { padding: 0 4px; border-top: 1.5px solid currentColor; }
 
       @media (max-width: 940px) {
         .app { grid-template-columns: 1fr; }

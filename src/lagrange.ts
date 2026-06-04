@@ -46,14 +46,48 @@ export function evaluate(nodes: Point[], x: number): number | null {
 }
 
 /**
+ * Expande el numerador de Lᵢ(x): Π_{j≠i} (x − xⱼ) como arreglo de
+ * coeficientes [a₀, a₁, a₂, …], donde poly[k] es el coeficiente de xᵏ.
+ *
+ * Es la multiplicación polinomio-por-polinomio (convolución 1D) que se
+ * hace a mano al expandir el producto de factores lineales. Se expone
+ * aparte para que el panel matemático muestre el desarrollo de cada Lᵢ(x).
+ */
+export function numeratorCoefficients(nodes: Point[], i: number): number[] {
+  // Invariante: poly[k] es el coeficiente de xᵏ en el producto parcial.
+  let poly: number[] = [1];
+  for (let j = 0; j < nodes.length; j++) {
+    if (j === i) continue;
+    const xj = nodes[j].x;
+    const next = new Array<number>(poly.length + 1).fill(0);
+    for (let k = 0; k < poly.length; k++) {
+      next[k]     -= poly[k] * xj; // término constante: −xⱼ · coef
+      next[k + 1] += poly[k];      // término lineal:    +1  · coef
+    }
+    poly = next;
+  }
+  return poly;
+}
+
+/**
+ * Denominador de Lᵢ(x): Π_{j≠i} (xᵢ − xⱼ).
+ * Es un número (no depende de x) y nunca es cero si las abscisas son distintas.
+ */
+export function denominator(nodes: Point[], i: number): number {
+  let denom = 1;
+  for (let j = 0; j < nodes.length; j++) {
+    if (j !== i) denom *= nodes[i].x - nodes[j].x;
+  }
+  return denom;
+}
+
+/**
  * Expande P(x) a la forma estándar: a₀ + a₁x + a₂x² + …
  * Retorna el arreglo de coeficientes [a₀, a₁, a₂, …].
  *
  * Algoritmo:
- *  1. Para cada nodo i, calcula el denominador: Π_{j≠i} (xᵢ − xⱼ)
- *  2. Expande el numerador Π_{j≠i} (x − xⱼ) en coeficientes,
- *     multiplicando polinomio por polinomio (convolución 1D).
- *  3. Escala por yᵢ/denominador y acumula en el resultado.
+ *  1. Para cada nodo i, expande el numerador Π_{j≠i} (x − xⱼ) en coeficientes.
+ *  2. Lo escala por yᵢ / denominador y lo acumula en el resultado.
  *
  * No se usa en la curva (para eso está `evaluate`), sino en el
  * panel matemático para mostrar la forma colapsada del polinomio.
@@ -65,28 +99,10 @@ export function getCoefficients(nodes: Point[]): number[] | null {
   const result = new Array<number>(n).fill(0);
 
   for (let i = 0; i < n; i++) {
-    // Denominador: Π_{j≠i} (xᵢ − xⱼ)
-    let denom = 1;
-    for (let j = 0; j < n; j++) {
-      if (j !== i) denom *= nodes[i].x - nodes[j].x;
-    }
-
-    // Expansión del numerador Π_{j≠i} (x − xⱼ) como arreglo de coeficientes.
-    // Invariante: poly[k] es el coeficiente de xᵏ en el producto parcial.
-    let poly: number[] = [1];
-    for (let j = 0; j < n; j++) {
-      if (j === i) continue;
-      const xj = nodes[j].x;
-      const next = new Array<number>(poly.length + 1).fill(0);
-      for (let k = 0; k < poly.length; k++) {
-        next[k]     -= poly[k] * xj; // término constante: −xⱼ · coef
-        next[k + 1] += poly[k];      // término lineal:    +1  · coef
-      }
-      poly = next;
-    }
+    const poly = numeratorCoefficients(nodes, i);
 
     // Acumula la contribución del nodo i: (yᵢ / denom) · poly
-    const scale = nodes[i].y / denom;
+    const scale = nodes[i].y / denominator(nodes, i);
     for (let k = 0; k < poly.length; k++) {
       result[k] += poly[k] * scale;
     }
