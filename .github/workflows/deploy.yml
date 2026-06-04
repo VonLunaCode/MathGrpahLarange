@@ -1,0 +1,26 @@
+name: Deploy
+
+# Despliega automáticamente en el servidor (homelab en Tailscale) en cada push
+# a main. Corre sobre el runner self-hosted etiquetado "ordinario-mate", que
+# vive dentro del propio server, así no necesita SSH entrante ni exponer nada.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+# Evita despliegues solapados: si llega un push nuevo, cancela el anterior.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, ordinario-mate]
+    steps:
+      - name: Actualizar repo y reconstruir contenedor
+        run: |
+          cd /home/vonlunant/ordinario-mate
+          git fetch --all --prune
+          git reset --hard origin/main
+          docker compose up -d --build
+          docker image prune -f
