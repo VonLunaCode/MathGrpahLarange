@@ -1,0 +1,265 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage[utf8]{inputenc}
+\usepackage[spanish]{babel}
+\usepackage{listings}
+\usepackage{hyperref}
+
+% Configuración para bloques de código con más espacio
+\lstset{
+  language=TypeScript,
+  basicstyle=\ttfamily\footnotesize,
+  keywordstyle=\color{blue}\bfseries,
+  stringstyle=\color{red},
+  commentstyle=\color{green!60!black},
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  stepnumber=1,
+  breaklines=true,
+  frame=single,
+  captionpos=b,
+  aboveskip=0.5cm,
+  belowskip=0.5cm,
+  xleftmargin=2em,          % Empuja todo el bloque de código hacia la derecha
+  framexleftmargin=1.5em    % Expande el marco para que envuelva los números
+}
+
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+
+\begin{document}
+
+\title{Implementación Web Interactiva de la Interpolación de Lagrange mediante Aritmética Racional Exacta\\
+}
+
+% Dividimos los autores en 2 filas usando \\[1cm] para que Camila no se desborde del margen
+\author{
+\IEEEauthorblockN{Misael Reynoso Aguayo}
+\IEEEauthorblockA{\textit{Ingeniería en Sistemas} \\
+\textit{Universidad del Valle de Puebla}\\
+Matrícula: TI46401}
+\and
+\IEEEauthorblockN{Christian Luna Ortiz}
+\IEEEauthorblockA{\textit{Ingeniería en Sistemas} \\
+\textit{Universidad del Valle de Puebla}\\
+Matrícula: TI44057}
+\\[1cm]
+\IEEEauthorblockN{Irais Gisela Macuil Chapuli}
+\IEEEauthorblockA{\textit{Ingeniería en Sistemas} \\
+\textit{Universidad del Valle de Puebla}\\
+Matrícula: TI46644}
+\and
+\IEEEauthorblockN{Camila Serrano Trinidad}
+\IEEEauthorblockA{\textit{Ingeniería en Sistemas} \\
+\textit{Universidad del Valle de Puebla}\\
+Matrícula: TI46653}
+}
+
+\maketitle
+
+\begin{abstract}
+El problema de interpolación polinómica de Lagrange es fundamental en el Análisis Numérico para la aproximación de funciones discretas. Sin embargo, su comprensión teórica suele verse dificultada por la falta de herramientas interactivas que permitan visualizar su comportamiento dinámico y los errores de redondeo asociados a la aritmética de punto flotante. Este trabajo académico, desarrollado en el marco de la asignatura de Análisis Numérico aplicado a la Ingeniería en Sistemas, presenta la creación de un software interactivo basado en la web, construido con TypeScript. Mediante el uso de tipos de datos de precisión arbitraria (BigInt), se garantiza una representación racional exacta, eliminando la pérdida de precisión típica del estándar IEEE 754. Se expone la arquitectura del código, la traducción de los modelos matemáticos a estructuras computacionales y la validación de un caso de estudio. Los resultados demuestran que la herramienta permite observar la convergencia del polinomio y facilita la identificación de inestabilidades numéricas como el fenómeno de Runge.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Interpolación de Lagrange, Análisis Numérico, TypeScript, Aritmética Exacta, Fenómeno de Runge, Ingeniería en Sistemas.
+\end{IEEEkeywords}
+
+\section{Introducción}
+El Análisis Numérico es una rama crítica de las matemáticas aplicadas y las ciencias de la computación, dedicada al diseño y análisis de algoritmos para resolver problemas matemáticos de naturaleza continua. En la formación académica del Ingeniero en Sistemas, comprender cómo los modelos abstractos se transforman en código ejecutable es un pilar fundamental. Dentro de esta disciplina, la interpolación polinómica juega un papel esencial, permitiendo estimar valores intermedios a partir de un conjunto discreto de puntos de datos \cite{b1}.
+
+\vspace{0.2cm}
+
+El método de interpolación de Lagrange es uno de los enfoques teóricos más elegantes para construir dicho polinomio. No obstante, su implementación práctica en software convencional suele verse obstaculizada por la susceptibilidad a errores de precisión numérica provocados por la limitación de la arquitectura de la máquina. Tradicionalmente, la validación de estos modelos depende de cálculos manuales propensos a errores.
+
+\vspace{0.2cm}
+
+Para cerrar esta brecha entre la teoría matemática y la práctica del desarrollo de software, se desarrolló \textit{MathGraphLagrange}. Este proyecto es una plataforma web creada para resolver analíticamente y visualizar la interpolación polinómica, aplicando los conocimientos adquiridos en la materia de Análisis Numérico. 
+
+Para garantizar la transparencia académica y posibilitar la revisión de la comunidad estudiantil, el código fuente completo de la aplicación es de dominio público y puede ser consultado en el repositorio oficial del equipo en GitHub: \url{https://github.com/VonLunaCode/MathGrpahLarange.git}.
+
+El documento está estructurado de la siguiente manera: la Sección II describe la metodología y el manejo de aritmética racional en código. La Sección III desglosa la implementación algorítmica en TypeScript mediante fragmentos del código fuente. La Sección IV presenta los resultados mediante un caso de estudio extraído de clase, resuelto paso a paso y comparado contra el simulador. La Sección V discute el trabajo futuro enfocado en mitigación de errores, y la Sección VI expone las conclusiones del equipo.
+
+\section{Metodología y Arquitectura}
+
+\subsection{El Problema de la Precisión en Punto Flotante}
+La mayoría de los lenguajes de programación, incluido el ecosistema de JavaScript, implementan los números mediante el estándar IEEE 754 de punto flotante de doble precisión (64 bits). Al realizar operaciones sucesivas como divisiones y multiplicaciones cruzadas —fundamentales para construir los polinomios base de Lagrange—, este estándar introduce errores de truncamiento. 
+
+\vspace{0.2cm}
+
+En la ingeniería de software matemático, pequeñas desviaciones numéricas en operaciones intermedias se amplifican catastróficamente al aumentar el grado del polinomio, distorsionando los coeficientes resultantes y provocando gráficas inexactas \cite{b2}.
+
+\subsection{Aritmética Racional Exacta con BigInt}
+Para resolver esta problemática propia de las ciencias computacionales y mantener la integridad matemática, la arquitectura de \textit{MathGraphLagrange} se diseñó con un motor de aritmética racional exacta basado en la primitiva \texttt{BigInt} de TypeScript.
+
+Cada término se representa de forma aislada como una fracción:
+
+\begin{equation}
+\frac{p}{q}
+\vspace{0.1cm}
+\end{equation}
+
+donde el numerador $p$ y el denominador $q$ son números enteros de precisión arbitraria. Las operaciones algebraicas sobre polinomios fueron programadas desde cero para operar exclusivamente sobre estas fracciones, aplicando el Algoritmo de Euclides para el cálculo del Máximo Común Divisor (MCD) y simplificando las fracciones iterativamente en cada paso lógico.
+
+\section{Implementación Algorítmica en TypeScript}
+Como estudiantes de Ingeniería en Sistemas, el desafío principal radicó en traducir las sumatorias y productoras matemáticas de la fórmula de Lagrange a código modular, limpio y escalable. A continuación, se explican los componentes centrales implementados en la clase \texttt{rational.ts}.
+
+\subsection{Cálculo del Numerador y Denominador de las Bases}
+El polinomio interpolante depende fuertemente de las bases de Lagrange $L_i(x)$. Matemáticamente, el numerador es la productoria $\prod_{j \neq i} (x - x_j)$ y el denominador es el escalar $\prod_{j \neq i} (x_i - x_j)$. 
+
+\vspace{0.2cm}
+
+En código, esto se implementó en dos funciones separadas para modularizar la sobrecarga racional de la siguiente manera:
+
+\begin{lstlisting}[caption={Algoritmo para calcular las bases racionales}, label={lst:bases}]
+// Numerador de L_i(x): Expandido a polinomio racional.
+export function lagrangeNumerator(xs: Frac[], i: number): FPoly {
+  let poly: FPoly = [ONE];
+  for (let j = 0; j < xs.length; j++) {
+    if (j === i) continue;
+    poly = pMulLinear(poly, xs[j]);
+  }
+  return poly;
+}
+
+// Denominador de L_i(x): Escalar racional.
+export function lagrangeDenominator(xs: Frac[], i: number): Frac {
+  let d = ONE;
+  for (let j = 0; j < xs.length; j++) {
+    if (j !== i) d = fMul(d, fSub(xs[i], xs[j]));
+  }
+  return d;
+}
+\end{lstlisting}
+
+En la estructura \textit{FPoly} (Polinomio Fraccionario), cada coeficiente es un objeto racional. Las funciones \texttt{fMul} (multiplicación) y \texttt{fSub} (resta) están programadas para trabajar de forma exacta utilizando la estructura matemática base.
+
+\subsection{Construcción del Polinomio Exacto}
+La evaluación final obedece a la fórmula general:
+
+\begin{equation}
+P(x) \; = \; \sum_{i} \; y_i \cdot L_i(x)
+\vspace{0.1cm}
+\end{equation}
+
+Se ensambla multiplicando cada numerador polinómico por la constante escalar que corresponde a la división $y_i / denominador_i$. 
+
+\begin{lstlisting}[caption={Algoritmo principal de interpolación de Lagrange}, label={lst:exact}]
+// Desarrolla P(x) exacto: Sumatoria de (y_i / denom_i) * numerador_i
+export function lagrangeDevelopExact(xs: Frac[], ys: Frac[]): FPoly {
+  let result: FPoly = [ZERO];
+  for (let i = 0; i < xs.length; i++) {
+    const num   = lagrangeNumerator(xs, i);
+    const scale = fMul(ys[i], fInv(lagrangeDenominator(xs, i)));
+    result = pAdd(result, pScale(num, scale));
+  }
+  return result;
+}
+\end{lstlisting}
+
+Este fragmento demuestra la eficiencia del enfoque algorítmico. En lugar de lidiar con funciones continuas propensas a errores de flotante, el sistema manipula arreglos de coeficientes, operándolos vectorialmente (\texttt{pAdd}, \texttt{pScale}). Esto refleja una aplicación directa de álgebra lineal computacional desarrollada en el curso.
+
+\section{Resultados y Caso de Estudio}
+Para validar la implementación en TypeScript contra el conocimiento teórico de la clase, el equipo de desarrollo sometió al software a un caso de estudio clásico, documentado analíticamente a mano.
+
+\subsection{Definición del Problema}
+Se introdujeron tres nodos cartesianos específicos:
+
+\vspace{0.1cm}
+\begin{equation}
+(x_0, y_0) \;=\; (-2, 5)
+\end{equation}
+\begin{equation}
+(x_1, y_1) \;=\; (11, -8)
+\end{equation}
+\begin{equation}
+(x_2, y_2) \;=\; (15, -5)
+\end{equation}
+\vspace{0.1cm}
+
+En la Fig. \ref{fig:clase} se muestra la memoria de cálculo del desarrollo analítico realizado a mano por el equipo. Este apunte teórico fungió como el \textit{ground truth} (verdad terreno) para someter a prueba la salida de la plataforma computacional.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\linewidth]{EjercicioClase.JPEG}
+    \caption{Desarrollo analítico a mano del polinomio de interpolación para los nodos propuestos, realizado durante la clase.}
+    \label{fig:clase}
+\end{figure}
+
+El sistema ejecutó el algoritmo descrito en el Listado \ref{lst:exact} para determinar la parábola final $P_2(x)$.
+
+\subsection{Ejecución del Algoritmo}
+Las funciones \texttt{lagrangeNumerator} y \texttt{lagrangeDenominator} arrojaron los siguientes polinomios base sin pérdida decimal:
+
+\vspace{0.1cm}
+\begin{align}
+L_0(x) &= \frac{x^2 - 26x + 165}{221} \\[0.3cm]
+L_1(x) &= \frac{x^2 - 13x - 30}{-52} \\[0.3cm]
+L_2(x) &= \frac{x^2 - 9x - 22}{68}
+\end{align}
+\vspace{0.1cm}
+
+Al finalizar la iteración en la función principal, la reducción fraccionaria final convergió en el siguiente polinomio unificado:
+
+\vspace{0.1cm}
+\begin{equation}
+P_2(x) = \frac{7}{68} x^2 \;-\; \frac{131}{68} x \;+\; \frac{25}{34}
+\end{equation}
+\vspace{0.1cm}
+
+Este resultado emparejó milimétricamente el ejercicio resuelto a mano. 
+
+\subsection{Simulación en la Plataforma Web}
+Una vez obtenida la precisión matemática, se procedió a renderizar la información y la gráfica en la interfaz. Las capturas de pantalla de la plataforma (ver Fig. \ref{fig:sim1}, \ref{fig:sim2} y \ref{fig:sim3}) ilustran el flujo del cálculo y la interacción del usuario con la herramienta \textit{MathGraphLagrange}. 
+
+En la Fig. \ref{fig:sim1} se muestra la sección principal donde se ingresan los puntos (nodos) y se aprecia la visualización en tiempo real de la gráfica generada. La Fig. \ref{fig:sim2} ilustra el apartado lógico donde el software despliega el cálculo individual de los polinomios base $L_i(x)$. Finalmente, la Fig. \ref{fig:sim3} muestra la resolución de la sumatoria y el cálculo exacto del polinomio final $P(x)$ que unifica los resultados.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\linewidth]{EjercicioSimulado01.png}
+    \caption{Ingreso de los puntos cartesianos y visualización interactiva de la gráfica.}
+    \label{fig:sim1}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\linewidth]{EjercicioSimulado02.png}
+    \caption{Cálculo analítico de las bases de Lagrange ($L_i$) realizado por el sistema.}
+    \label{fig:sim2}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\linewidth]{EjercicioSimulado03.png}
+    \caption{Cálculo y despliegue del polinomio interpolante exacto $P(x)$.}
+    \label{fig:sim3}
+\end{figure}
+
+El renderizado del plano cartesiano confirmó visualmente que la lógica computacional implementada no solo resolvió algebraicamente el problema, sino que lo tradujo a un modelo gráfico funcional e interactivo para la validación del usuario final.
+
+\section{Trabajo Futuro}
+Durante las pruebas de estrés con un número de nodos alto ($n > 10$) separados de manera equidistante, el software experimentó oscilaciones masivas y divergentes en los extremos del dominio interpolado. Como alumnos de ingeniería, identificamos que no se trataba de un error de código, sino del \textit{fenómeno de Runge}, una limitación matemática intrínseca al método de interpolación polinómica clásico \cite{b1}.
+
+Para futuras actualizaciones del proyecto, el equipo planea:
+\begin{enumerate}
+    \item Implementar la \textit{Interpolación Baricéntrica de Lagrange}. Esta variante reduce la complejidad computacional para la inserción dinámica de nodos de $\mathcal{O}(n^2)$ a $\mathcal{O}(n)$, optimizando drásticamente el rendimiento computacional general.
+    \item Habilitar un preprocesador para seleccionar \textit{Nodos de Chebyshev} en lugar de nodos equidistantes, lo cual mitigará directamente el fenómeno de Runge, aumentando la estabilidad gráfica del software.
+\end{enumerate}
+
+\section{Conclusión}
+El desarrollo del proyecto \textit{MathGraphLagrange} fue un puente exitoso entre los modelos teóricos del Análisis Numérico y las metodologías prácticas de la Ingeniería en Sistemas. Al diseñar desde cero un motor de aritmética racional usando \texttt{BigInt} en TypeScript, el equipo sorteó exitosamente los errores inherentes al estándar IEEE 754 de coma flotante, demostrando madurez arquitectónica.
+
+Los algoritmos implementados (\texttt{lagrangeNumerator}, \texttt{lagrangeDevelopExact}) tradujeron fielmente las fórmulas iterativas a código modular. El caso de prueba y sus respectivos anexos confirmaron que la validación manual de la academia se correlaciona con la simulación computacional. Este proyecto consolida las habilidades del equipo no solo para resolver ecuaciones algebraicas, sino para programar soluciones interactivas aplicadas al mundo real.
+
+\begin{thebibliography}{00}
+\bibitem{b1} R. L. Burden and J. D. Faires, \textit{Numerical Analysis}, 9th ed. Boston, MA: Brooks/Cole, Cengage Learning, 2011, pp. 109--120.
+\bibitem{b2} S. C. Chapra and R. P. Canale, \textit{Numerical Methods for Engineers}, 7th ed. New York, NY: McGraw-Hill Education, 2015, pp. 505--515.
+\end{thebibliography}
+
+\end{document}

@@ -13,6 +13,7 @@ import type { Frac } from './rational';
 import {
   toFraction, fToHtml, pToHtml,
   lagrangeNumerator, lagrangeDenominator, lagrangeDevelopExact,
+  fMul, fInv, pScale, ZERO
 } from './rational';
 import { draw, w2s, s2w } from './renderer';
 
@@ -474,52 +475,188 @@ function syncMath(): void {
     parts.push(`
       <div class="math-step" style="border-left: 4px solid ${nodes[i].color};">
         <div class="step-label" style="color: ${nodes[i].color}; font-weight: bold;">L<sub>${i}</sub>(x)</div>
-        <div class="step-expr">
-          <div class="frac">
-            <div class="frac-top">${factoredNumerator(nodes, i)}</div>
-            <div class="frac-bar"></div>
-            <div class="frac-bot">${den.join(' · ')} = ${denomStr(i)}</div>
+        <div class="step-expr" style="display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; width: 100%; white-space: normal;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div class="frac">
+              <div class="frac-top">${factoredNumerator(nodes, i)}</div>
+              <div class="frac-bar"></div>
+              <div class="frac-bot">${den.join(' · ')}</div>
+            </div>
+            <span style="font-size: 16px; font-weight: 500; color: var(--ink-soft);">=</span>
+            <div class="frac">
+              <div class="frac-top">${numStr(i)}</div>
+              <div class="frac-bar"></div>
+              <div class="frac-bot">${denomStr(i)}</div>
+            </div>
           </div>
-          <div class="poly-line">= ( ${numStr(i)} ) / (${denomStr(i)})</div>
-          <div class="contrib" style="color: ${nodes[i].color};">
-            aporte: f(x<sub>${i}</sub>) · L<sub>${i}</sub>(x) = ${fmtNum(nodes[i].y)} · L<sub>${i}</sub>(x)
+          
+          <div class="aporte-badge" style="border: 1px solid ${nodes[i].color}33; background: ${nodes[i].color}08; color: ${nodes[i].color}; padding: 6px 12px; border-radius: var(--r-sm); font-size: 11.5px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; box-shadow: var(--inset-sm);">
+            <span style="font-weight: 700; text-transform: uppercase; font-size: 9.5px; opacity: 0.8; letter-spacing: 0.05em;">Aporte:</span>
+            <span>f(x<sub>${i}</sub>)·L<sub>${i}</sub>(x) = ${fmtNum(nodes[i].y)}·L<sub>${i}</sub>(x)</span>
           </div>
         </div>
       </div>`);
   }
 
   // Sección 2: ensamble del polinomio P(x) = Σ f(xᵢ) · Lᵢ(x).
-  //  - Primera línea: forma simbólica, tal como la enseña el método.
-  //  - Segunda línea: cada f(xᵢ) sustituido por su valor y cada Lᵢ(x)
-  //    reemplazado por su desarrollo real (numerador / denominador).
-  const symbolic = nodes.map((n, i) =>
-    `<span style="color: ${n.color}; font-weight: bold; padding: 2px 6px; border-radius: 4px; background: ${n.color}11;">f(x<sub>${i}</sub>) · L<sub>${i}</sub>(x)</span>`
-  ).join('  +  ');
-  const realValues = nodes.map((n, i) => {
+  // Presenta alineados verticalmente cada término simbólico flotando sobre su sustitución
+  // correspondiente, alineando los operadores (+, =) con la línea de la fracción.
+  const assemblyTerms = nodes.map((n, i) => {
     const v = fmtNum(n.y);
     const val = n.y < 0 ? `(${v})` : v;
-    return `<span style="color: ${n.color};">${val} · ( ${numStr(i)} )/(${denomStr(i)})</span>`;
-  }).join('  +  ');
-  parts.push(`
-    <div class="math-step assembly">
-      <div class="step-label">P(x)</div>
-      <div class="step-expr" style="line-height: 2;">
-        <div>${symbolic}</div>
-        <div style="margin-top: 6px; color: var(--ink-soft);">= ${realValues}</div>
-      </div>
-    </div>`);
+    
+    const termSymbolic = `<span style="color: ${n.color}; font-weight: bold; padding: 4px 8px; border-radius: var(--r-sm); background: ${n.color}11; font-size: 11.5px; box-shadow: var(--inset-sm); display: inline-block;">f(x<sub>${i}</sub>)·L<sub>${i}</sub>(x)</span>`;
+    
+    const termReal = `<span style="color: ${n.color}; display: inline-flex; align-items: center; gap: 4px; vertical-align: middle;">
+      ${val} · 
+      <span class="ifrac">
+        <span class="ifrac-n">${numStr(i)}</span>
+        <span class="ifrac-d">${denomStr(i)}</span>
+      </span>
+    </span>`;
+    
+    return `
+      <div class="assembly-term" style="position: relative; display: inline-flex; align-items: center; vertical-align: middle;">
+        <div class="term-badge" style="position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%) translateY(-8px); white-space: nowrap; pointer-events: none;">
+          ${termSymbolic}
+        </div>
+        ${termReal}
+      </div>`;
+  }).join('<span style="font-size: 16px; font-weight: 500; color: var(--ink-faint); margin: 0 4px; vertical-align: middle;">+</span>');
 
-  // Sección 3: polinomio final colectando todos los términos.
-  //   P(x) = a₀ + a₁x + a₂x² + …
-  // Suma de cada aporte f(xᵢ)·Lᵢ(x) agrupado por potencia: el último paso
-  // que harías a mano. En fracciones exactas si los datos son racionales.
+  const distributedTerms = nodes.map((n, i) => {
+    if (ex) {
+      const xs = ex.xs;
+      const ys = ex.ys;
+      const denom = lagrangeDenominator(xs, i);
+      const scale = fMul(ys[i], fInv(denom));
+      
+      if (scale.n === 0n) {
+        return `<span style="color: ${n.color}; font-weight: 500; vertical-align: middle;">0</span>`;
+      }
+      
+      const termPoly = pScale(lagrangeNumerator(xs, i), { n: scale.n, d: 1n });
+      const numHtml = pToHtml(termPoly);
+      
+      if (scale.d === 1n) {
+        return `<span style="color: ${n.color}; vertical-align: middle;">${numHtml}</span>`;
+      }
+      
+      return `<span style="color: ${n.color}; display: inline-flex; align-items: center; vertical-align: middle;">
+        <span class="ifrac">
+          <span class="ifrac-n">${numHtml}</span>
+          <span class="ifrac-d">${scale.d}</span>
+        </span>
+      </span>`;
+    } else {
+      const yi = n.y;
+      const di = denominator(nodes, i);
+      if (Math.abs(yi) < 1e-9) {
+        return `<span style="color: ${n.color}; font-weight: 500; vertical-align: middle;">0</span>`;
+      }
+      const scale = yi / di;
+      const coeffs = numeratorCoefficients(nodes, i).map(c => c * scale);
+      const polyStr = polyToString(coeffs);
+      return `<span style="color: ${n.color}; vertical-align: middle;">${polyStr}</span>`;
+    }
+  }).join('<span style="font-size: 16px; font-weight: 500; color: var(--ink-faint); margin: 0 4px; vertical-align: middle;">+</span>');
+
+  const coefSteps: string[] = [];
+  if (ex) {
+    const xs = ex.xs;
+    const ys = ex.ys;
+    const degree = nodes.length - 1;
+    const finalPolyPoly = lagrangeDevelopExact(xs, ys);
+    
+    for (let k = degree; k >= 0; k--) {
+      const termCoefs: string[] = [];
+      for (let i = 0; i < nodes.length; i++) {
+        const denom = lagrangeDenominator(xs, i);
+        const scale = fMul(ys[i], fInv(denom));
+        const basisCoeffs = lagrangeNumerator(xs, i);
+        const basisK = basisCoeffs[k] ?? ZERO;
+        const termCoef = fMul(scale, basisK);
+        termCoefs.push(fToHtml(termCoef));
+      }
+      
+      const powerStr = k === 0 ? 'independiente' : (k === 1 ? 'de x' : `de x<sup>${k}</sup>`);
+      const sumExpr = termCoefs.join('  +  ').replace(/\+\s*−/g, '− ');
+      const totalHtml = fToHtml(finalPolyPoly[k] ?? ZERO);
+      
+      coefSteps.push(`
+        <div style="margin-bottom: 6px; font-size: 13px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+          <span style="font-weight: 600; color: var(--ink-soft); min-width: 140px;">Coef. ${powerStr}:</span>
+          <span style="vertical-align: middle;">${sumExpr} = <strong>${totalHtml}</strong></span>
+        </div>`);
+    }
+  } else {
+    const degree = nodes.length - 1;
+    const finalPolyCoeffs = getCoefficients(nodes) || [];
+    
+    for (let k = degree; k >= 0; k--) {
+      const termCoefs: string[] = [];
+      for (let i = 0; i < nodes.length; i++) {
+        const di = denominator(nodes, i);
+        const scale = nodes[i].y / di;
+        const basisCoeffs = numeratorCoefficients(nodes, i);
+        const basisK = basisCoeffs[k] ?? 0;
+        const termCoef = scale * basisK;
+        termCoefs.push(fmt(termCoef, 4));
+      }
+      
+      const powerStr = k === 0 ? 'independiente' : (k === 1 ? 'de x' : `de x<sup>${k}</sup>`);
+      const sumExpr = termCoefs.join('  +  ').replace(/\+\s*-\s*/g, '− ');
+      const totalHtml = fmt(finalPolyCoeffs[k] ?? 0, 4);
+      
+      coefSteps.push(`
+        <div style="margin-bottom: 6px; font-size: 13px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+          <span style="font-weight: 600; color: var(--ink-soft); min-width: 140px;">Coef. ${powerStr}:</span>
+          <span style="vertical-align: middle;">${sumExpr} = <strong>${totalHtml}</strong></span>
+        </div>`);
+    }
+  }
+
   const finalPoly = ex ? pToHtml(lagrangeDevelopExact(ex.xs, ex.ys))
                        : (() => { const c = getCoefficients(nodes); return c ? polyToString(c) : null; })();
+
   if (finalPoly) {
     parts.push(`
-      <div class="math-step assembly">
-        <div class="step-label">P(x) desarrollado</div>
-        <div class="step-expr poly-final">P(x) = ${finalPoly}</div>
+      <div class="math-step assembly" style="align-items: flex-start; padding-top: 20px; padding-bottom: 20px;">
+        <div class="step-label" style="font-weight: bold; font-size: 14px; color: var(--ink-soft); line-height: 1.8;">P(x)</div>
+        <div class="step-expr" style="white-space: normal; line-height: 1.6; display: flex; flex-direction: column; gap: 24px; width: 100%;">
+          
+          <div>
+            <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 12px; letter-spacing: 0.05em;">1. Ensamble y sustitución en la fórmula general</div>
+            <div style="white-space: nowrap; overflow-x: auto; display: flex; align-items: center; gap: 8px; padding-top: 36px; padding-bottom: 8px; width: 100%;">
+              <span style="font-size: 14.5px; font-weight: bold; color: var(--ink); margin-right: 4px; vertical-align: middle;">P(x) =</span>
+              ${assemblyTerms}
+            </div>
+          </div>
+
+          <div>
+            <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 12px; letter-spacing: 0.05em;">2. Multiplicación de f(xᵢ) y simplificación de términos</div>
+            <div style="white-space: nowrap; overflow-x: auto; display: flex; align-items: center; gap: 8px; padding-bottom: 8px; width: 100%;">
+              <span style="font-size: 14.5px; font-weight: bold; color: var(--ink); margin-right: 4px; vertical-align: middle;">P(x) =</span>
+              ${distributedTerms}
+            </div>
+          </div>
+
+          <div>
+            <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 12px; letter-spacing: 0.05em;">3. Operación y reducción de coeficientes por potencia</div>
+            <div style="display: flex; flex-direction: column; gap: 6px; padding-left: 8px;">
+              ${coefSteps.join('')}
+            </div>
+          </div>
+
+          <div style="border-top: 1px dashed rgba(45, 55, 72, 0.15); padding-top: 16px;">
+            <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 12px; letter-spacing: 0.05em;">4. Polinomio desarrollado final</div>
+            <div style="font-size: 15.5px; font-weight: bold; color: var(--ink); display: inline-flex; align-items: center; gap: 6px; vertical-align: middle;">
+              <span style="vertical-align: middle;">P(x) =</span>
+              ${finalPoly}
+            </div>
+          </div>
+
+        </div>
       </div>`);
   }
 
